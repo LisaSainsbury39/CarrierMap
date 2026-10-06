@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Carrier Footprint by State</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.32.0/plotly.min.js"></script>
+<style>
+  :root{
+    --ink:#1b2430;
+    --paper:#f7f5f0;
+    --panel:#ffffff;
+    --line:#e2ddd2;
+    --accent:#7f35b2;
+    --accent-deep:#48086f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Georgia","Iowan Old Style",serif;
+  }
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding:40px 28px 56px;
+  }
+  header{
+    border-bottom:1px solid var(--line);
+    padding-bottom:20px;
+    margin-bottom:22px;
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  h1{
+    font-size:28px;
+    font-weight:400;
+    margin:0;
+    letter-spacing:0.2px;
+  }
+  h1 em{
+    font-style:italic;
+    color:var(--accent-deep);
+  }
+  .meta{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:12.5px;
+    color:#6b6458;
+    text-align:right;
+    line-height:1.5;
+  }
+  .toggle{
+    display:inline-flex;
+    border:1px solid var(--accent-deep);
+    border-radius:20px;
+    overflow:hidden;
+    margin-bottom:26px;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+  }
+  .toggle button{
+    border:none;
+    background:var(--panel);
+    color:var(--accent-deep);
+    padding:9px 22px;
+    font-size:13.5px;
+    cursor:pointer;
+    transition:background .15s,color .15s;
+  }
+  .toggle button.active{
+    background:var(--accent-deep);
+    color:#fff;
+  }
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-bottom:26px;
+  }
+  .stat{
+    background:var(--panel);
+    border:1px solid var(--line);
+    padding:14px 16px;
+  }
+  .stat .num{
+    font-size:26px;
+    color:var(--accent-deep);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+  }
+  .stat .label{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:11.5px;
+    color:#8a8373;
+    margin-top:2px;
+  }
+  #map{
+    background:var(--panel);
+    border:1px solid var(--line);
+    padding:6px;
+  }
+  .panels{
+    display:grid;
+    grid-template-columns:1.3fr 1fr;
+    gap:18px;
+    margin-top:18px;
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    padding:18px 20px;
+  }
+  .panel h2{
+    font-size:14px;
+    font-weight:400;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    letter-spacing:0.3px;
+    color:#51493d;
+    margin:0 0 12px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:8px;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+  }
+  td,th{
+    padding:5px 4px;
+    text-align:left;
+  }
+  td.n, th.n{text-align:right;}
+  tr.row:hover{background:#f1efe8;cursor:pointer;}
+  tr.hi{background:#f1e9f6;}
+  .bar-bg{
+    background:#ece8dd;
+    height:7px;
+    border-radius:3px;
+    overflow:hidden;
+    margin-top:2px;
+  }
+  .bar-fill{
+    height:100%;
+    background:var(--accent);
+  }
+  #detail-title{
+    font-size:17px;
+    margin:0 0 10px;
+  }
+  #detail-body{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:13px;
+    line-height:1.5;
+    color:#3a352c;
+  }
+  .carrier-chip{
+    display:inline-block;
+    background:#f1efe8;
+    border:1px solid var(--line);
+    padding:3px 9px;
+    margin:3px 4px 0 0;
+    font-size:12px;
+    border-radius:3px;
+  }
+  footer{
+    margin-top:26px;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:11.5px;
+    color:#9a9282;
+    text-align:center;
+  }
+  @media (max-width:860px){
+    .panels{grid-template-columns:1fr;}
+    .stats{grid-template-columns:repeat(2,1fr);}
+    header{flex-direction:column;align-items:flex-start;}
+    .meta{text-align:left;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="pageTitle">Carrier footprint, <em>by state</em></h1>
+    <div class="meta" id="pageMeta">Source: RawFootprint 2027</div>
+  </header>
+
+  <div class="toggle">
+    <button id="btnMedigap" class="active">Medigap</button>
+    <button id="btnMedAdv">Medicare Advantage</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div id="map"></div>
+
+  <div class="panels">
+    <div class="panel">
+      <h2>States ranked by carrier count</h2>
+      <table id="rankTable">
+        <thead><tr><th>State</th><th class="n">Carriers</th><th style="width:40%">&nbsp;</th></tr></thead>
+        <tbody id="rankBody"></tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <h2>State detail</h2>
+      <div id="detail-title">Click a state on the map or the list</div>
+      <div id="detail-body">Select a state to see which carriers write business there.</div>
+    </div>
+  </div>
+
+  <footer>Built from the uploaded RawFootprint workbook &mdash; counts reflect unique carrier names per state, by product line.</footer>
+</div>
+
+<script>
+const datasets = {
+  medigap: {
+    label: "Medigap",
+    title: "Medigap carrier footprint, <em>by state</em>",
+    meta: "Source: RawFootprint 2027, Medigap (2027) sheet<br>Carriers counted by distinct name per state",
+    detailDefault: "Select a state to see which carriers write Medigap business there.",
+    data: [{"state": "AK", "count": 6, "carriers": ["Aetna Inc.", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "AL", "count": 7, "carriers": ["Aetna Inc.", "BlueCross BlueShield of Alabama", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "AR", "count": 4, "carriers": ["Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "AZ", "count": 7, "carriers": ["Aetna Inc.", "Blue Cross Blue Shield of Arizona", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "CA", "count": 7, "carriers": ["Aetna Inc.", "Anthem Inc.", "California Physicians' Service", "HEALTHSPRING", "Humana Inc.", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "CO", "count": 6, "carriers": ["Aetna Inc.", "Anthem Inc.", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "CT", "count": 4, "carriers": ["Anthem Inc.", "HEALTHSPRING", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "DC", "count": 6, "carriers": ["CareFirst BlueCross BlueShield", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "DE", "count": 5, "carriers": ["Aetna Inc.", "Highmark Health", "Humana Inc.", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "FL", "count": 8, "carriers": ["Aetna Inc.", "Florida Blue", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare", "Wisconsin Physicians Service Ins Corporation."]}, {"state": "GA", "count": 6, "carriers": ["Anthem Inc.", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "HI", "count": 5, "carriers": ["HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "IA", "count": 7, "carriers": ["Aetna Inc.", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare", "Wellmark Blue Cross and Blue Shield of Iowa"]}, {"state": "ID", "count": 5, "carriers": ["Aetna Inc.", "HEALTHSPRING", "Mutual of Omaha", "Regence BlueShield of Idaho", "UnitedHealthcare"]}, {"state": "IL", "count": 8, "carriers": ["Aetna Inc.", "Blue Cross and Blue Shield of Illinois", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare", "Wisconsin Physicians Service Ins Corporation."]}, {"state": "IN", "count": 6, "carriers": ["Aetna Inc.", "Anthem Inc.", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "KS", "count": 4, "carriers": ["Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "KY", "count": 6, "carriers": ["Aetna Inc.", "Anthem Inc.", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "LA", "count": 7, "carriers": ["Aetna Inc.", "BLUECROSS BLUESHIELD OF LOUISIANA", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "MA", "count": 3, "carriers": ["BLUE CROSS AND BLUE SHIELD OF MASSACHUSETTS", "Harvard Pilgrim Health Care, Inc.", "UnitedHealthcare"]}, {"state": "MD", "count": 6, "carriers": ["Aetna Inc.", "CareFirst BlueCross BlueShield", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "ME", "count": 5, "carriers": ["Anthem Inc.", "Harvard Pilgrim Health Care, Inc.", "Humana Inc.", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "MI", "count": 9, "carriers": ["Aetna Inc.", "Blue Cross Blue Shield of Michigan", "HEALTHSPRING", "Health Alliance Plan", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "Priority Health", "UnitedHealthcare"]}, {"state": "MN", "count": 6, "carriers": ["Aetna Inc.", "Aware Integrated, Inc.", "HEALTHSPRING", "Humana Inc.", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "MO", "count": 6, "carriers": ["Aetna Inc.", "Anthem Inc.", "HEALTHSPRING", "Humana Inc.", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "MS", "count": 6, "carriers": ["Aetna Inc.", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "MT", "count": 6, "carriers": ["Aetna Inc.", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "NC", "count": 7, "carriers": ["Aetna Inc.", "Blue Cross and Blue Shield of North Carolina", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "ND", "count": 5, "carriers": ["Aetna Inc.", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "NE", "count": 5, "carriers": ["Aetna Inc.", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "NH", "count": 7, "carriers": ["Aetna Inc.", "Anthem Inc.", "Harvard Pilgrim Health Care, Inc.", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "NJ", "count": 6, "carriers": ["Aetna Inc.", "Horizon Healthcare Services, Inc.", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "NM", "count": 7, "carriers": ["Aetna Inc.", "Blue Cross and Blue Shield of New Mexico", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "NV", "count": 7, "carriers": ["Aetna Inc.", "Anthem Inc.", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "NY", "count": 4, "carriers": ["Highmark Health", "Humana Inc.", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "OH", "count": 10, "carriers": ["Aetna Inc.", "Anthem Inc.", "HEALTHSPRING", "Health Plan of the Upper Ohio Valley", "Humana Inc.", "MEDICAL MUTUAL OF OHIO", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare", "Wisconsin Physicians Service Ins Corporation."]}, {"state": "OK", "count": 7, "carriers": ["Aetna Inc.", "Blue Cross and Blue Shield of Oklahoma", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "OR", "count": 6, "carriers": ["Aetna Inc.", "HEALTHSPRING", "Humana Inc.", "Mutual of Omaha", "Regence BlueCross BlueShield of Oregon", "UnitedHealthcare"]}, {"state": "PA", "count": 9, "carriers": ["Aetna Inc.", "Capital Blue Cross", "HEALTHSPRING", "Highmark Health", "Humana Inc.", "Independence Blue Cross", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "RI", "count": 5, "carriers": ["Aetna Inc.", "Blue Cross & Blue Shield of Rhode Island", "Humana Inc.", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "SC", "count": 7, "carriers": ["Aetna Inc.", "BlueCross BlueShield of South Carolina (BCBSSC)", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "SD", "count": 7, "carriers": ["Aetna Inc.", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare", "Wellmark BCBS of South Dakota"]}, {"state": "TN", "count": 7, "carriers": ["Aetna Inc.", "BlueCross BlueShield of Tennessee", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "TX", "count": 8, "carriers": ["Aetna Inc.", "Blue Cross and Blue Shield of Texas", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare", "Wisconsin Physicians Service Ins Corporation."]}, {"state": "UT", "count": 6, "carriers": ["Aetna Inc.", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "Regence BlueCross BlueShield of Utah", "UnitedHealthcare"]}, {"state": "VA", "count": 8, "carriers": ["Aetna Inc.", "Anthem Inc.", "CareFirst BlueCross BlueShield", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "VT", "count": 6, "carriers": ["Aetna Inc.", "Blue Cross and Blue Shield of Vermont", "HEALTHSPRING", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "WA", "count": 7, "carriers": ["Asuris Northwest Health", "HEALTHSPRING", "Humana Inc.", "Mutual of Omaha", "Regence BlueCross BlueShield of Oregon", "Regence BlueShield", "UnitedHealthcare"]}, {"state": "WI", "count": 8, "carriers": ["Aetna Inc.", "Anthem Inc.", "HEALTHSPRING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare", "Wisconsin Physicians Service Ins Corporation."]}, {"state": "WV", "count": 7, "carriers": ["Aetna Inc.", "Health Plan of the Upper Ohio Valley", "Highmark Health", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}, {"state": "WY", "count": 6, "carriers": ["Aetna Inc.", "BLUE CROSS BLUE SHIELD OF WYOMING", "Humana Inc.", "Monitor Life Medicare Supplement", "Mutual of Omaha", "UnitedHealthcare"]}]
+  },
+  medadv: {
+    label: "Medicare Advantage",
+    title: "Medicare Advantage carrier footprint, <em>by state</em>",
+    meta: "Source: RawFootprint 2027, CMS Plans (2027) sheet<br>Carriers counted by distinct name per state, Med Adv plans only",
+    detailDefault: "Select a state to see which carriers write Medicare Advantage business there.",
+    data: [{"state": "AL", "count": 7, "carriers": ["Aetna Inc.", "BlueCross BlueShield of Alabama", "Devoted Health", "Healthspring", "Humana Inc.", "UAB Health System", "UnitedHealthcare"]}, {"state": "AR", "count": 5, "carriers": ["Aetna Inc.", "Devoted Health", "Healthspring", "Humana Inc.", "UnitedHealthcare"]}, {"state": "AZ", "count": 10, "carriers": ["Aetna Inc.", "Alignment Health Plan", "Anthem Inc.", "Blue Cross Blue Shield of Arizona", "Centene Corporation", "Devoted Health", "Healthspring", "Humana Inc.", "SCAN Health Plan", "UnitedHealthcare"]}, {"state": "CA", "count": 8, "carriers": ["Aetna Inc.", "Alignment Health Plan", "Anthem Inc.", "California Physicians' Service", "Humana Inc.", "Kaiser Foundation Health Plan, Inc.", "SCAN Health Plan", "UnitedHealthcare"]}, {"state": "CO", "count": 7, "carriers": ["Aetna Inc.", "Devoted Health", "Healthspring", "Humana Inc.", "Intermountain Health Care, Inc.", "Kaiser Foundation Health Plan, Inc.", "UnitedHealthcare"]}, {"state": "CT", "count": 5, "carriers": ["Aetna Inc.", "Anthem Inc.", "Devoted Health", "Humana Inc.", "UnitedHealthcare"]}, {"state": "DC", "count": 3, "carriers": ["Aetna Inc.", "Kaiser Foundation Health Plan, Inc.", "UnitedHealthcare"]}, {"state": "DE", "count": 6, "carriers": ["Aetna Inc.", "Devoted Health", "Healthspring", "Highmark Health", "Humana Inc.", "UnitedHealthcare"]}, {"state": "FL", "count": 7, "carriers": ["Aetna Inc.", "Devoted Health", "Florida Blue", "Healthspring", "Humana Inc.", "UnitedHealthcare", "WellCare Health Plans, Inc."]}, {"state": "GA", "count": 9, "carriers": ["Aetna Inc.", "Anthem Inc.", "BlueCross BlueShield of Tennessee", "Devoted Health", "Healthspring", "Humana Inc.", "Kaiser Foundation Health Plan, Inc.", "UnitedHealthcare", "WellCare Health Plans, Inc."]}, {"state": "HI", "count": 4, "carriers": ["Devoted Health", "Humana Inc.", "Kaiser Foundation Health Plan, Inc.", "UnitedHealthcare"]}, {"state": "IA", "count": 6, "carriers": ["Aetna Inc.", "Devoted Health", "Humana Inc.", "Medica Holding Company", "Trinity Health", "UnitedHealthcare"]}, {"state": "ID", "count": 2, "carriers": ["Humana Inc.", "UnitedHealthcare"]}, {"state": "IL", "count": 7, "carriers": ["Aetna Inc.", "Devoted Health", "Health Care Service Corporation", "Healthspring", "Humana Inc.", "UnitedHealthcare", "WellCare Health Plans, Inc."]}, {"state": "IN", "count": 5, "carriers": ["Aetna Inc.", "Anthem Inc.", "Devoted Health", "Humana Inc.", "UnitedHealthcare"]}, {"state": "KS", "count": 4, "carriers": ["Aetna Inc.", "Devoted Health", "Humana Inc.", "UnitedHealthcare"]}, {"state": "KY", "count": 6, "carriers": ["Aetna Inc.", "Anthem Inc.", "Devoted Health", "Healthspring", "Humana Inc.", "UnitedHealthcare"]}, {"state": "LA", "count": 5, "carriers": ["Aetna Inc.", "Devoted Health", "Humana Inc.", "UnitedHealthcare", "WellCare Health Plans, Inc."]}, {"state": "MA", "count": 6, "carriers": ["Aetna Inc.", "Baystate Health, Inc.", "Humana Inc.", "Mass General", "Tufts Associated HMO, Inc.", "UnitedHealthcare"]}, {"state": "MD", "count": 3, "carriers": ["Healthspring", "Humana Inc.", "Kaiser Foundation Health Plan, Inc."]}, {"state": "ME", "count": 4, "carriers": ["Aetna Inc.", "Anthem Inc.", "Humana Inc.", "UnitedHealthcare"]}, {"state": "MI", "count": 8, "carriers": ["Aetna Inc.", "Blue Cross Blue Shield of Michigan", "Devoted Health", "Health Alliance Plan", "Humana Inc.", "Priority Health", "Trinity Health", "UnitedHealthcare"]}, {"state": "MN", "count": 4, "carriers": ["Aetna Inc.", "Aware Integrated, Inc.", "Medica Holding Company", "UnitedHealthcare"]}, {"state": "MO", "count": 6, "carriers": ["Aetna Inc.", "Anthem Inc.", "Devoted Health", "Healthspring", "Humana Inc.", "UnitedHealthcare"]}, {"state": "MS", "count": 6, "carriers": ["Aetna Inc.", "Devoted Health", "Healthspring", "Humana Inc.", "UnitedHealthcare", "WellCare Health Plans, Inc."]}, {"state": "MT", "count": 1, "carriers": ["Humana Inc."]}, {"state": "NC", "count": 7, "carriers": ["Aetna Inc.", "Alignment Health Plan", "Blue Cross and Blue Shield of North Carolina", "Devoted Health", "Healthspring", "Humana Inc.", "UnitedHealthcare"]}, {"state": "ND", "count": 3, "carriers": ["Aetna Inc.", "Medica Holding Company", "UnitedHealthcare"]}, {"state": "NE", "count": 5, "carriers": ["Aetna Inc.", "Devoted Health", "Humana Inc.", "Medica Holding Company", "UnitedHealthcare"]}, {"state": "NH", "count": 3, "carriers": ["Devoted Health", "Humana Inc.", "UnitedHealthcare"]}, {"state": "NJ", "count": 6, "carriers": ["Aetna Inc.", "Anthem Inc.", "Devoted Health", "Healthspring", "Humana Inc.", "UnitedHealthcare"]}, {"state": "NM", "count": 5, "carriers": ["Devoted Health", "Health Care Service Corporation", "Healthspring", "Humana Inc.", "UnitedHealthcare"]}, {"state": "NV", "count": 9, "carriers": ["Aetna Inc.", "Alignment Health Plan", "Anthem Inc.", "Healthspring", "Humana Inc.", "Intermountain Health Care, Inc.", "Kaiser Foundation Health Plan, Inc.", "SCAN Health Plan", "UnitedHealthcare"]}, {"state": "NY", "count": 9, "carriers": ["Aetna Inc.", "Anthem Inc.", "CDPHP Medicare Advantage", "Devoted Health", "Humana Inc.", "Lifetime Healthcare, Inc.", "MVP Health Care, Inc.", "Trinity Health", "UnitedHealthcare"]}, {"state": "OH", "count": 12, "carriers": ["Aetna Inc.", "Anthem Inc.", "Aultman Health Foundation", "Devoted Health", "Health Plan of the Upper Ohio Valley", "Healthspring", "Humana Inc.", "Medical Mutual of Ohio", "Summa Health System", "Trinity Health", "UPMC for Life", "UnitedHealthcare"]}, {"state": "OK", "count": 5, "carriers": ["Aetna Inc.", "Devoted Health", "Healthspring", "Humana Inc.", "UnitedHealthcare"]}, {"state": "OR", "count": 5, "carriers": ["Aetna Inc.", "Devoted Health", "Humana Inc.", "Kaiser Foundation Health Plan, Inc.", "UnitedHealthcare"]}, {"state": "PA", "count": 9, "carriers": ["Aetna Inc.", "Devoted Health", "Geisinger Health System", "Healthspring", "Highmark Health", "Humana Inc.", "Independence Blue Cross", "UPMC for Life", "UnitedHealthcare"]}, {"state": "RI", "count": 3, "carriers": ["Aetna Inc.", "Blue Cross & Blue Shield of Rhode Island", "UnitedHealthcare"]}, {"state": "SC", "count": 6, "carriers": ["Aetna Inc.", "BlueCross BlueShield of South Carolina (BCBSSC)", "Devoted Health", "Healthspring", "Humana Inc.", "UnitedHealthcare"]}, {"state": "SD", "count": 3, "carriers": ["Aetna Inc.", "Medica Holding Company", "UnitedHealthcare"]}, {"state": "TN", "count": 7, "carriers": ["Aetna Inc.", "Anthem Inc.", "BlueCross BlueShield of Tennessee", "Devoted Health", "Healthspring", "Humana Inc.", "UnitedHealthcare"]}, {"state": "TX", "count": 8, "carriers": ["Aetna Inc.", "Alignment Health Plan", "Anthem Inc.", "Devoted Health", "Healthspring", "Humana Inc.", "SCAN Health Plan", "UnitedHealthcare"]}, {"state": "UT", "count": 5, "carriers": ["Aetna Inc.", "Devoted Health", "Humana Inc.", "Intermountain Health Care, Inc.", "UnitedHealthcare"]}, {"state": "VA", "count": 7, "carriers": ["Aetna Inc.", "Anthem Inc.", "Devoted Health", "Healthspring", "Humana Inc.", "Kaiser Foundation Health Plan, Inc.", "UnitedHealthcare"]}, {"state": "VT", "count": 1, "carriers": ["Humana Inc."]}, {"state": "WA", "count": 6, "carriers": ["Aetna Inc.", "Devoted Health", "Healthspring", "Humana Inc.", "Kaiser Foundation Health Plan, Inc.", "SCAN Health Plan"]}, {"state": "WI", "count": 6, "carriers": ["Aetna Inc.", "Anthem Inc.", "Humana Inc.", "Medica Holding Company", "NETWORK HEALTH INSURANCE CORPORATIO", "UnitedHealthcare"]}, {"state": "WV", "count": 6, "carriers": ["Aetna Inc.", "Anthem Inc.", "Health Plan of the Upper Ohio Valley", "Highmark Health", "Humana Inc.", "UnitedHealthcare"]}, {"state": "WY", "count": 1, "carriers": ["Humana Inc."]}]
+  }
+};
+
+let current = "medigap";
+
+function render(key){
+  current = key;
+  document.getElementById('btnMedigap').classList.toggle('active', key === 'medigap');
+  document.getElementById('btnMedAdv').classList.toggle('active', key === 'medadv');
+
+  const ds = datasets[key];
+  const data = ds.data;
+  document.getElementById('pageTitle').innerHTML = ds.title;
+  document.getElementById('pageMeta').innerHTML = ds.meta;
+  document.getElementById('detail-title').textContent = 'Click a state on the map or the list';
+  document.getElementById('detail-body').textContent = ds.detailDefault;
+
+  const maxCount = Math.max(...data.map(d => d.count));
+  const minCount = Math.min(...data.map(d => d.count));
+  const totalStates = data.length;
+  const avg = (data.reduce((a,d)=>a+d.count,0) / totalStates).toFixed(1);
+  const uniqueCarriers = new Set();
+  data.forEach(d => d.carriers.forEach(c => uniqueCarriers.add(c)));
+
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="num">${totalStates}</div><div class="label">States / jurisdictions covered</div></div>
+    <div class="stat"><div class="num">${uniqueCarriers.size}</div><div class="label">Distinct carrier names nationwide</div></div>
+    <div class="stat"><div class="num">${maxCount}</div><div class="label">Highest count (${data.find(d=>d.count===maxCount).state})</div></div>
+    <div class="stat"><div class="num">${avg}</div><div class="label">Average carriers per state</div></div>
+  `;
+
+  const locations = data.map(d => d.state);
+  const z = data.map(d => d.count);
+  const hover = data.map(d => `<b>${d.state}</b><br>${d.count} carriers<br>${d.carriers.slice(0,6).join('<br>')}${d.carriers.length>6 ? '<br>…' : ''}`);
+
+  const trace = {
+    type: 'choropleth',
+    locationmode: 'USA-states',
+    locations: locations,
+    z: z,
+    text: hover,
+    hoverinfo: 'text',
+    colorscale: [
+      [0, '#f1e9f6'],
+      [0.5, '#9b5bc4'],
+      [1, '#48086f']
+    ],
+    zmin: minCount,
+    zmax: maxCount,
+    marker: { line: { color: '#f7f5f0', width: 1.2 } },
+    colorbar: {
+      title: { text: 'Carriers', font: { family: 'Helvetica Neue, Arial, sans-serif', size: 12 } },
+      thickness: 14,
+      len: 0.65
+    }
+  };
+
+  const layout = {
+    geo: {
+      scope: 'usa',
+      bgcolor: 'rgba(0,0,0,0)',
+      lakecolor: '#f7f5f0'
+    },
+    margin: { t: 10, b: 10, l: 0, r: 0 },
+    height: 520,
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    font: { family: 'Helvetica Neue, Arial, sans-serif', color: '#3a352c' }
+  };
+
+  Plotly.react('map', [trace], layout, {displayModeBar:false, responsive:true});
+
+  const sorted = [...data].sort((a,b)=> b.count - a.count);
+  const rankBody = document.getElementById('rankBody');
+  rankBody.innerHTML = '';
+  sorted.forEach(d => {
+    const tr = document.createElement('tr');
+    tr.className = 'row';
+    tr.dataset.state = d.state;
+    const pct = (d.count / maxCount) * 100;
+    tr.innerHTML = `<td>${d.state}</td><td class="n">${d.count}</td>
+      <td><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div></td>`;
+    tr.addEventListener('click', () => showDetail(d.state));
+    rankBody.appendChild(tr);
+  });
+}
+
+function showDetail(stateCode){
+  const d = datasets[current].data.find(x => x.state === stateCode);
+  if(!d) return;
+  document.getElementById('detail-title').textContent = `${stateCode} — ${d.count} carrier${d.count===1?'':'s'}`;
+  document.getElementById('detail-body').innerHTML = d.carriers.map(c => `<span class="carrier-chip">${c}</span>`).join('');
+  document.querySelectorAll('tr.row').forEach(r => r.classList.toggle('hi', r.dataset.state === stateCode));
+}
+
+document.getElementById('btnMedigap').addEventListener('click', () => render('medigap'));
+document.getElementById('btnMedAdv').addEventListener('click', () => render('medadv'));
+
+document.getElementById('map').on('plotly_click', (ev) => {
+  const pt = ev.points[0];
+  showDetail(pt.location);
+});
+
+render('medigap');
+</script>
+</body>
+</html>
